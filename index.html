@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Naman Scale — Quotation Generator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ======= FORM VIEW ======= -->
+<div id="form-view">
+
+  <header class="app-hdr">
+    <div class="app-logo">NS</div>
+    <div class="app-hdr-txt">
+      <h1>Quotation Generator</h1>
+      <p>Naman Scale, Bharatpur</p>
+    </div>
+    <span class="app-hdr-badge">Professional</span>
+  </header>
+
+  <div class="form-wrap">
+
+    <!-- 1. Quotation Details -->
+    <div class="card">
+      <div class="card-hdr">
+        <div class="card-num">1</div>
+        <h2>Quotation Details</h2>
+      </div>
+      <div class="card-body">
+        <div class="grid g3">
+          <div class="field">
+            <label>Quotation No.</label>
+            <input type="text" id="q-num" placeholder="e.g. B199">
+          </div>
+          <div class="field">
+            <label>Date</label>
+            <input type="date" id="q-date">
+          </div>
+          <div class="field">
+            <label>Reference (Optional)</label>
+            <input type="text" id="q-ref" placeholder="e.g. ph.c/RJ">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Client Details -->
+    <div class="card">
+      <div class="card-hdr">
+        <div class="card-num">2</div>
+        <h2>Client Details</h2>
+      </div>
+      <div class="card-body">
+        <div class="grid g2">
+          <div class="field">
+            <label>Company / Person Name *</label>
+            <input type="text" id="c-name" placeholder="e.g. City Union Bank">
+          </div>
+          <div class="field">
+            <label>Client GSTIN (Optional)</label>
+            <input type="text" id="c-gstin" placeholder="e.g. 08ABCDE1234F1Z5" maxlength="15" style="text-transform:uppercase">
+          </div>
+          <div class="field">
+            <label>Billing / Correspondence Address *</label>
+            <textarea id="c-addr" rows="2" placeholder="Full address with city, state, PIN"></textarea>
+          </div>
+          <div class="field">
+            <label>Delivery Address (if different)</label>
+            <textarea id="c-daddr" rows="2" placeholder="Leave blank if same as billing"></textarea>
+          </div>
+          <div class="field">
+            <label>Contact Person</label>
+            <input type="text" id="c-person" placeholder="Name of contact person">
+          </div>
+          <div class="field">
+            <label>Contact Phone</label>
+            <input type="text" id="c-phone" placeholder="+91 XXXXX XXXXX">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Items -->
+    <div class="card">
+      <div class="card-hdr">
+        <div class="card-num">3</div>
+        <h2>Items &amp; Pricing</h2>
+      </div>
+      <div class="card-body">
+
+        <!-- Quotation type toggle -->
+        <div class="tog-wrap" style="margin-bottom:18px">
+          <span class="tog-label">Quotation Type</span>
+          <div class="tog-group">
+            <button class="tog on" id="std-btn" onclick="setItemType('standard')">Standard Weighing Machine</button>
+            <button class="tog" id="wb-btn" onclick="setItemType('weighbridge')">Weighbridge</button>
+          </div>
+        </div>
+
+        <!-- STANDARD items -->
+        <div id="std-section">
+          <div style="overflow-x:auto">
+            <div class="tbl-wrap">
+              <table class="itbl">
+                <thead>
+                  <tr>
+                    <th style="width:28px">#</th>
+                    <th style="min-width:240px">Item Name &amp; Description</th>
+                    <th style="width:90px">HSN/SAC</th>
+                    <th style="width:64px">Qty</th>
+                    <th style="width:72px">Unit</th>
+                    <th style="width:120px">Rate (₹)</th>
+                    <th class="r" style="width:130px">Total (₹)</th>
+                    <th style="width:32px"></th>
+                  </tr>
+                </thead>
+                <tbody id="items-body"></tbody>
+              </table>
+            </div>
+          </div>
+          <button class="btn-add" onclick="addItem()">＋ Add Item Row</button>
+        </div>
+
+        <!-- WEIGHBRIDGE items -->
+        <div id="wb-section" style="display:none">
+
+          <!-- Main priced item -->
+          <div style="margin-bottom:16px">
+            <div style="font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px">Main Item</div>
+            <div class="tbl-wrap">
+              <table class="itbl">
+                <thead>
+                  <tr>
+                    <th style="min-width:180px">Item Name</th>
+                    <th style="width:64px">Qty</th>
+                    <th style="width:72px">Unit</th>
+                    <th style="width:124px">Rate (₹)</th>
+                    <th class="r" style="width:124px">Total (₹)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><input type="text" id="wb-item-name" value="WEIGHBRIDGE"></td>
+                    <td><input type="number" id="wb-item-qty" value="1" min="0" step="any" oninput="calcTotals()" style="width:56px"></td>
+                    <td><select id="wb-item-unit"><option>Nos</option><option>Set</option></select></td>
+                    <td><input type="number" id="wb-item-rate" min="0" step="any" placeholder="0.00" oninput="calcTotals()"></td>
+                    <td class="c" id="wb-item-total">₹0.00</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Components checklist -->
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px">
+              Components <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--gray-300)">— tick to include in quotation</span>
+            </div>
+            <div class="tbl-wrap">
+              <table class="itbl">
+                <thead>
+                  <tr>
+                    <th style="width:38px;text-align:center">✓</th>
+                    <th style="min-width:220px">Component</th>
+                    <th style="width:64px">Qty</th>
+                    <th>Details / Dimensions</th>
+                  </tr>
+                </thead>
+                <tbody id="wb-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Summary -->
+        <div class="summary-box" style="display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-top:14px">
+          <div id="s-words" style="flex:1;font-size:12px;color:var(--gray-500);font-style:italic;min-width:160px">Zero Rupees Only</div>
+          <table class="sum-tbl" style="flex-shrink:0">
+            <tr class="totrow"><td>Grand Total</td><td id="s-grand">₹0.00</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Customer Scope (Weighbridge only) -->
+    <div class="card" id="scope-card" style="display:none">
+      <div class="card-hdr">
+        <div class="card-num" style="background:var(--gray-400)">CS</div>
+        <h2>Customer Scope of Supply</h2>
+        <p>Auto-included in weighbridge quotation</p>
+      </div>
+      <div class="card-body">
+        <ol style="padding-left:18px;font-size:13px;line-height:2.1;color:var(--gray-700)">
+          <li>Civil Work including digging foundation, welding set &amp; earthing to be undertaken by the customer as per the drawings/instructions.</li>
+          <li>Unskilled labor / Hyra at the time of unloading &amp; installation.</li>
+          <li>Approach Road and Weigh cabin to be provided.</li>
+          <li>Standard Test weights of at least one ton to be purchased / Arranged for testing (Must require).</li>
+          <li>UPS/Batteries for power backup if required.</li>
+          <li>Cost of stamping through Weights &amp; Measure Deptt. to be borne by customer.</li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- 4. Technical Specs -->
+    <div class="card">
+      <div class="card-hdr">
+        <div class="card-num">4</div>
+        <h2>Technical Specifications</h2>
+        <p>Optional — for weighbridge &amp; equipment quotes</p>
+      </div>
+      <div class="card-body">
+        <div class="grid g2">
+          <div class="field"><label>Capacity</label><input type="text" id="spec-cap" placeholder="e.g. 60 Tons"></div>
+          <div class="field"><label>Platform Size</label><input type="text" id="spec-plat" placeholder="e.g. 18m × 3m"></div>
+          <div class="field"><label>Accuracy</label><input type="text" id="spec-acc" placeholder="e.g. 20 Kg"></div>
+          <div class="field"><label>Type</label><input type="text" id="spec-type" placeholder="e.g. Pit Type / Pitless"></div>
+          <div class="field span2"><label>Additional Specifications</label>
+            <textarea id="spec-other" rows="2" placeholder="Any other technical details..."></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. Terms -->
+    <div class="card">
+      <div class="card-hdr">
+        <div class="card-num">5</div>
+        <h2>Terms &amp; Conditions</h2>
+      </div>
+      <div class="card-body">
+        <div class="field">
+          <label>One term per line</label>
+          <textarea id="q-terms" rows="6">Payment will be taken 100% in Advance.
+GST @ 18% will be charged extra as applicable.
+Warranty as per manufacturer's policy.
+Delivery within 7–10 working days from order confirmation.
+Price is valid for 15 days from the date of this quotation.
+Freight & transportation charges are extra unless otherwise specified.</textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6. Notes -->
+    <div class="card">
+      <div class="card-hdr">
+        <div class="card-num">6</div>
+        <h2>Additional Notes</h2>
+        <p>Optional</p>
+      </div>
+      <div class="card-body">
+        <div class="field">
+          <textarea id="q-notes" rows="3" placeholder="Any additional information for the client..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn-secondary" onclick="resetForm()">Clear</button>
+      <button class="btn-primary" onclick="generate()">
+        Generate Quotation
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+
+  </div>
+</div><!-- /form-view -->
+
+
+<!-- ======= PREVIEW VIEW ======= -->
+<div id="preview-view" style="display:none">
+
+  <div class="prev-bar">
+    <div class="prev-bar-info">
+      <span class="prev-badge">Preview</span>
+      <span class="prev-bar-hint">Click Download PDF to save directly</span>
+    </div>
+    <div class="prev-bar-btns">
+      <button class="btn-back" onclick="showForm()">← Edit</button>
+      <button class="btn-dl" onclick="downloadHTML()">⬇ Download PDF</button>
+      <button class="btn-print-q" onclick="window.print()">🖨 Print / PDF</button>
+    </div>
+  </div>
+
+  <div class="q-wrap">
+    <div class="q-page" id="q-out"></div>
+  </div>
+
+</div><!-- /preview-view -->
+
+<script src="app.js"></script>
+</body>
+</html>
