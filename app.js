@@ -6,7 +6,7 @@ const CO = {
   email: 'anilnaman44@gmail.com', phone: '+91 99821 29592'
 };
 const BK = { name: 'Naman Scale', bank: 'HDFC Bank', acc: '50200064524792', ifsc: 'HDFC0001055' };
-let taxMode = 'intra', idc = 0, itemType = 'standard';
+let taxMode = 'intra', idc = 0, itemType = 'standard', gstEnabled = false;
 
 /* ===== WEIGHBRIDGE ITEMS ===== */
 const WB_ITEMS = [
@@ -58,6 +58,18 @@ function setItemType(type) {
   calcTotals();
 }
 
+/* ===== GST TOGGLE ===== */
+function setGST(enabled) {
+  gstEnabled = enabled;
+  document.getElementById('gst-on-btn').classList.toggle('on', enabled);
+  document.getElementById('gst-off-btn').classList.toggle('on', !enabled);
+  const show = enabled ? 'table-row' : 'none';
+  document.getElementById('s-subtotal-row').style.display = show;
+  document.getElementById('s-gst-row').style.display      = show;
+  document.getElementById('s-divrow').style.display       = show;
+  calcTotals();
+}
+
 /* ===== INIT ===== */
 window.onload = () => {
   document.getElementById('q-date').value = new Date().toISOString().split('T')[0];
@@ -66,6 +78,79 @@ window.onload = () => {
 };
 
 /* ===== ITEMS ===== */
+function autoResizeDesc(el) {
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+
+function addDescLine(id, type) {
+  const ta = document.getElementById('d' + id);
+  const val = ta.value;
+  const lines = val.split('\n');
+  let prefix;
+  if (type === 'bullet') {
+    prefix = '• ';
+  } else {
+    const count = lines.filter(l => /^\d+\./.test(l.trim())).length;
+    prefix = (count + 1) + '. ';
+  }
+  ta.value = val + (val && !val.endsWith('\n') ? '\n' : '') + prefix;
+  autoResizeDesc(ta);
+  ta.focus();
+  ta.setSelectionRange(ta.value.length, ta.value.length);
+}
+
+function handleDescKey(e, id) {
+  const ta = e.target;
+  const pos = ta.selectionStart;
+  const val = ta.value;
+  const lineStart = val.lastIndexOf('\n', pos - 1) + 1;
+  const currentLine = val.substring(lineStart, pos);
+
+  const bulletMatch = currentLine.match(/^(• )(.*)/);
+  const numberMatch = currentLine.match(/^(\d+)\. (.*)/);
+
+  if (e.key === 'Enter' && (bulletMatch || numberMatch)) {
+    e.preventDefault();
+    if (bulletMatch) {
+      if (!bulletMatch[2].trim()) {
+        // Empty bullet — exit list
+        ta.value = val.substring(0, lineStart) + val.substring(lineStart + 2);
+        ta.selectionStart = ta.selectionEnd = lineStart;
+      } else {
+        const ins = '\n• ';
+        ta.value = val.substring(0, pos) + ins + val.substring(pos);
+        ta.selectionStart = ta.selectionEnd = pos + ins.length;
+      }
+    } else {
+      const num = parseInt(numberMatch[1]);
+      if (!numberMatch[2].trim()) {
+        // Empty numbered line — exit list
+        const prefixLen = String(num).length + 2;
+        ta.value = val.substring(0, lineStart) + val.substring(lineStart + prefixLen);
+        ta.selectionStart = ta.selectionEnd = lineStart;
+      } else {
+        const ins = '\n' + (num + 1) + '. ';
+        ta.value = val.substring(0, pos) + ins + val.substring(pos);
+        ta.selectionStart = ta.selectionEnd = pos + ins.length;
+      }
+    }
+    autoResizeDesc(ta);
+  }
+
+  if (e.key === 'Backspace' && (bulletMatch || numberMatch)) {
+    const content = bulletMatch ? bulletMatch[2] : numberMatch[2];
+    if (!content) {
+      // Cursor right after prefix with no content — remove prefix
+      e.preventDefault();
+      const prefixLen = bulletMatch ? 2 : String(numberMatch[1]).length + 2;
+      ta.value = val.substring(0, lineStart) + val.substring(lineStart + prefixLen);
+      ta.selectionStart = ta.selectionEnd = lineStart;
+      autoResizeDesc(ta);
+    }
+  }
+}
+
 function addItem() {
   idc++;
   const id = idc, tb = document.getElementById('items-body');
@@ -74,7 +159,13 @@ function addItem() {
     <td style="text-align:center;color:var(--gray-400);font-size:11px">${tb.rows.length + 1}</td>
     <td>
       <input type="text" id="n${id}" placeholder="Item name" oninput="calcTotals()">
-      <input type="text" id="d${id}" class="desc-in" placeholder="Description / model (optional)">
+      <div class="desc-wrap">
+        <div class="desc-btns">
+          <button type="button" class="desc-pt-btn" onclick="addDescLine(${id},'bullet')">• Bullet</button>
+          <button type="button" class="desc-pt-btn" onclick="addDescLine(${id},'number')">1. Number</button>
+        </div>
+        <textarea id="d${id}" class="desc-in" placeholder="Description points…" oninput="autoResizeDesc(this)" onkeydown="handleDescKey(event,${id})"></textarea>
+      </div>
     </td>
     <td><input type="text" id="h${id}" placeholder="—" style="width:82px"></td>
     <td><input type="number" id="q${id}" value="1" min="0" step="any" oninput="calcTotals()" style="width:58px"></td>
@@ -109,8 +200,14 @@ function calcTotals() {
     const el = document.getElementById('wb-item-total');
     if (el) el.textContent = '₹' + grand.toFixed(2);
   }
-  document.getElementById('s-grand').textContent = '₹' + grand.toFixed(2);
-  document.getElementById('s-words').textContent = n2w(grand);
+  const gstAmt = gstEnabled ? grand * 0.18 : 0;
+  const grandTotal = grand + gstAmt;
+  if (gstEnabled) {
+    document.getElementById('s-subtotal').textContent = '₹' + grand.toFixed(2);
+    document.getElementById('s-gst').textContent      = '₹' + gstAmt.toFixed(2);
+  }
+  document.getElementById('s-grand').textContent = '₹' + grandTotal.toFixed(2);
+  document.getElementById('s-words').textContent = n2w(grandTotal);
 }
 
 /* ===== NUMBER TO WORDS ===== */
@@ -180,7 +277,9 @@ function generate() {
     items = [{ no: 1, name: wbName, desc: '', hsn: '', qty: wbQty, unit: wbUnit, rate: wbRate, tot: wbQty * wbRate }];
   }
 
-  const gt    = items.reduce((s, i) => s + i.tot, 0);
+  const subTotal = items.reduce((s, i) => s + i.tot, 0);
+  const gstAmt   = gstEnabled ? subTotal * 0.18 : 0;
+  const gt       = subTotal + gstAmt;
   const terms = document.getElementById('q-terms').value.trim().split('\n').filter(t => t.trim());
   const notes = document.getElementById('q-notes').value.trim();
   const scap  = document.getElementById('spec-cap').value.trim();
@@ -196,7 +295,7 @@ function generate() {
   let rowsHtml = items.map(it => `
     <tr>
       <td>${it.no}.</td>
-      <td><strong>${esc(it.name)}</strong>${it.desc ? `<div class="q-item-desc">${esc(it.desc)}</div>` : ''}${it.hsn ? `<div class="q-item-desc">HSN: ${esc(it.hsn)}</div>` : ''}</td>
+      <td><strong>${esc(it.name)}</strong>${it.desc ? `<div class="q-item-desc-list">${it.desc.split('\n').filter(l=>l.trim()).map(l=>`<div class="q-item-desc">${esc(l.trim())}</div>`).join('')}</div>` : ''}${it.hsn ? `<div class="q-item-desc">HSN: ${esc(it.hsn)}</div>` : ''}</td>
       <td class="r">${it.qty}</td>
       <td>${esc(it.unit)}</td>
       <td class="r">₹${fn(it.rate)}</td>
@@ -286,11 +385,24 @@ function generate() {
         <th class="r" style="width:90px">Total (₹)</th>
       </tr></thead>
       <tbody>${rowsHtml}</tbody>
-      <tfoot><tr>
-        <td colspan="4" style="font-size:7.5pt;color:#555;vertical-align:middle"><b style="color:#111;font-style:normal">Amount in Words:&nbsp;</b><span style="font-style:italic">${n2w(gt)}</span></td>
-        <td style="text-align:right;font-weight:700;font-size:8pt;white-space:nowrap;vertical-align:middle">Grand Total</td>
-        <td class="r" style="font-weight:800;font-size:9pt;white-space:nowrap;vertical-align:middle">${fi(gt)}</td>
-      </tr></tfoot>
+      <tfoot>
+        ${gstEnabled ? `
+        <tr>
+          <td colspan="4" style="font-size:7.5pt;color:#555;background:#F9F9F9!important;font-weight:400">Sub Total</td>
+          <td style="text-align:right;font-size:8pt;background:#F9F9F9!important;font-weight:600">Sub Total</td>
+          <td class="r" style="background:#F9F9F9!important;font-weight:600">${fi(subTotal)}</td>
+        </tr>
+        <tr>
+          <td colspan="4" style="font-size:7.5pt;color:#555;background:#F9F9F9!important;font-weight:400">GST @ 18%</td>
+          <td style="text-align:right;font-size:8pt;background:#F9F9F9!important;font-weight:600">GST @ 18%</td>
+          <td class="r" style="background:#F9F9F9!important;font-weight:600">${fi(gstAmt)}</td>
+        </tr>` : ''}
+        <tr>
+          <td colspan="4" style="font-size:7.5pt;color:#555;vertical-align:middle"><b style="color:#111;font-style:normal">Amount in Words:&nbsp;</b><span style="font-style:italic">${n2w(gt)}</span></td>
+          <td style="text-align:right;font-weight:700;font-size:8pt;white-space:nowrap;vertical-align:middle">Grand Total</td>
+          <td class="r" style="font-weight:800;font-size:9pt;white-space:nowrap;vertical-align:middle">${fi(gt)}</td>
+        </tr>
+      </tfoot>
     </table></div>
 
     ${itemType === 'weighbridge' ? `
